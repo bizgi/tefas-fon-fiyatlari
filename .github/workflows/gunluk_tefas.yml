@@ -1,0 +1,39 @@
+name: Gunluk TEFAS Fiyat Cekici
+
+on:
+  schedule:
+    # Her gün sabah 09:00'da çalışır (GitHub sunucuları UTC kullanır, 06:00 UTC = 09:00 TR saati)
+    - cron: '0 7 * * *'
+  workflow_dispatch: # GitHub üzerinden manuel olarak tetikleyebilmeniz için
+
+permissions:
+  contents: write # Botun repoya CSV dosyasını commit edebilmesi için yazma izni
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu Klonla
+        uses: actions/checkout@v4
+        
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Kütüphaneleri Yükle
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Python Kodunu Çalıştır
+        run: python tefas_scraper.py
+        
+      - name: Yeni CSV'yi Repoya Kaydet (Commit & Push)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add fon_fiyatlari.csv
+          # Eğer fiyatta değişiklik yoksa hata vermemesi için || echo kullanıyoruz
+          git commit -m "Günlük fon fiyatları güncellendi" || echo "Değişiklik yok"
+          git push
