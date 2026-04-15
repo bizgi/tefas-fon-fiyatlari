@@ -1,48 +1,58 @@
-from tefas import Crawler
-import pandas as pd
-from datetime import datetime, timedelta
-import os
+import requests
+from bs4 import BeautifulSoup
+import csv
+from datetime import datetime
 
-def fetch_tefas_data():
-    crawler = Crawler()
+# Çekmek istediğiniz fon kodlarını buraya yazın
+FON_LISTESI = ["TMG", "MAC", "AFT", "YAS", "NNF"]
+
+def get_fon_price(fon_kod):
+    fon_kod = fon_kod.upper()
+    url = f"https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod={fon_kod}"
     
-    # === BURAYI KENDİ FON KODLARINLA DEĞİŞTİR ===
-    fund_codes = ["AFT", "MAC", "TCD", "IPJ", "YAC"]  # örnek: istediğin kadar ekle
-    # =============================================
-    
-    # Son 365 gün (yaklaşık 1 yıl) veri çekiyoruz
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-    
-    all_data = []
-    for code in fund_codes:
-        try:
-            # İstediğin kolonları buradan seçebilirsin
-            df = crawler.fetch(
-                start=start_date,
-                end=end_date,
-                name=code,
-                columns=["code", "title", "date", "price", "market_cap", 
-                        "shares_outstanding", "investor_count"]
-            )
-            all_data.append(df)
-            print(f"✅ {code} verisi çekildi ({len(df)} satır)")
-        except Exception as e:
-            print(f"⚠️ {code} çekilirken hata: {e}")
-    
-    if all_data:
-        combined = pd.concat(all_data, ignore_index=True)
-        combined = combined.sort_values(by=["code", "date"]).reset_index(drop=True)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status() 
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        output_file = "tefas_fon_fiyatlari.csv"
-        combined.to_csv(output_file, index=False)
+        # Fiyatı yakalama
+        price_element = soup.select_one('ul.top-list li span')
         
-        print(f"\n🎉 Toplam {len(combined)} satır veri {output_file} dosyasına kaydedildi!")
-        print("\nSon fiyatlar (en güncel):")
-        latest = combined.groupby("code").last()[["date", "price", "market_cap", "investor_count"]]
-        print(latest)
-    else:
-        print("❌ Hiç veri çekilemedi.")
+        if price_element:
+            price_str = price_element.text.strip()
+            formatted_price = price_str.replace('.', '').replace(',', '.')
+            return float(formatted_price)
+        else:
+            return "Bulunamadı"
+
+    except Exception as e:
+        return f"Hata"
+
+def main():
+    # Günün tarihini al (Örn: 2024-03-15)
+    tarih = datetime.now().strftime("%Y-%m-%d")
+    
+    # CSV dosyasını oluştur / üzerine yaz
+    # Not: Her gün sadece güncel veriyi istiyorsanız 'w' (write), 
+    # geçmişi de tutmak istiyorsanız 'a' (append) kullanın. 
+    # Spreadsheet'e son durumu çekeceğimiz için 'w' kullanıyoruz.
+    with open('fon_fiyatlari.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        # Başlıkları yaz
+        writer.writerow(['Tarih', 'Fon Kodu', 'Fiyat'])
+        
+        # Fonları dön ve fiyatları kaydet
+        for fon in FON_LISTESI:
+            print(f"{fon} çekiliyor...")
+            fiyat = get_fon_price(fon)
+            writer.writerow([tarih, fon, fiyat])
+            
+    print("İşlem tamamlandı, CSV oluşturuldu.")
 
 if __name__ == "__main__":
-    fetch_tefas_data()
+    main()
