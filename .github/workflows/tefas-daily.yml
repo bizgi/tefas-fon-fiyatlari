@@ -1,0 +1,32 @@
+name: TEFAS Günlük Fiyat Çek
+
+on:
+  schedule:
+    - cron: '0 7 * * *'      # Her gün 10:00 Türkiye saati (UTC+3)
+  workflow_dispatch:         # Manuel çalıştırmak istersen buton çıkar
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Repo'yu checkout et
+        uses: actions/checkout@v4
+      
+      - name: Python 3.12 kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Bağımlılıkları kur
+        run: |
+          pip install tefas-crawler pandas
+      
+      - name: TEFAS verilerini çek
+        run: python tefas_fetch.py
+      
+      - name: Değişiklikleri otomatik commit et
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "TEFAS fon fiyatları otomatik güncellendi"
+          file_pattern: tefas_fon_fiyatlari.csv
