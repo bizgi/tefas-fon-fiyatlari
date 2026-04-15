@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 
 # Çekmek istediğiniz fon kodlarını buraya yazın
-FON_LISTESI = ["TMG", "MAC", "AFT", "YAS", "NNF"]
+FON_LISTESI = ["TI1", "TMG", "TIE", "ZBJ", "BGP", "PPJ", "ZPR", "DAS", "ILH", "DBH", "BIH", "AFT", "IDH", "TGE"]
 
 def get_fon_price(fon_kod):
     fon_kod = fon_kod.upper()
